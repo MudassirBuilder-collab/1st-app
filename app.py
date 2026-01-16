@@ -1,160 +1,214 @@
-# app.py
+# # app.py
+# # ---------------------------------------------
+# # COVID Prediction Web App (Final Working Version)
+# # KNN + SMOTE + Best K + Advanced Visualizations
+# # Written in human-style clean code
+# # ---------------------------------------------
 
-import streamlit as st
-import pandas as pd
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score
+# import streamlit as st
+# import pandas as pd
+# import numpy as np
+# import matplotlib.pyplot as plt
+# import seaborn as sns
 
-# -----------------------------
-# STEP 1: Load & Clean Data
-# -----------------------------
-@st.cache_data
-def load_data():
-    df = pd.read_csv(r"C:\Users\L4-PC23\Downloads\archive\patient.csv")
-    columns = ["sex", "age", "pneumonia", "diabetes", "asthma", "outcome"]
-    df = df[columns]
-    # Binary conversion
-    for col in df.columns:
-        if col != "age":
-            df[col] = df[col].apply(lambda x: 1 if x == 1 else 0)
-    return df
+# from sklearn.model_selection import train_test_split, cross_val_score
+# from sklearn.preprocessing import StandardScaler
+# from sklearn.neighbors import KNeighborsClassifier
+# from sklearn.metrics import accuracy_score, confusion_matrix
+# from imblearn.over_sampling import SMOTE
 
-df = load_data()
+# # Make plots look nicer
+# sns.set_style("whitegrid")
 
-# -----------------------------
-# STEP 2: Train KNN Model with Scaling
-# -----------------------------
-X = df.drop(columns="outcome")
-y = df["outcome"]
+# # ---------------------------------------------
+# # Page Configuration
+# # ---------------------------------------------
+# st.set_page_config(page_title="COVID Predictor App", layout="wide")
 
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42, stratify=y
-)
+# # ---------------------------------------------
+# # Load & Process Data
+# # ---------------------------------------------
+# @st.cache_data
+# def load_data():
+#     raw = pd.read_csv("patient.csv")
+    
+#     # Only required columns
+#     df = raw[["sex", "age", "pneumonia", "diabetes", "asthma", "outcome"]].copy()
+    
+#     # Encode features: 1 = Yes, 0 = No
+#     df["sex"] = df["sex"].map({1: 1, 2: 0})
+#     df["pneumonia"] = df["pneumonia"].map({1: 1, 2: 0})
+#     df["diabetes"] = df["diabetes"].map({1: 1, 2: 0})
+#     df["asthma"] = df["asthma"].map({1: 1, 2: 0})
+    
+#     # Outcome: 1 = Positive, 0 = Negative
+#     df["outcome"] = df["outcome"].map({1: 1, 2: 0})
+    
+#     return raw, df.dropna()
 
-# Scale age column
-scaler = StandardScaler()
-X_train_scaled = X_train.copy()
-X_test_scaled = X_test.copy()
-X_train_scaled["age"] = scaler.fit_transform(X_train[["age"]])
-X_test_scaled["age"] = scaler.transform(X_test[["age"]])
+# raw_df, df = load_data()
 
-# Weighted KNN
-knn = KNeighborsClassifier(n_neighbors=5, weights='distance')
-knn.fit(X_train_scaled, y_train)
+# # ---------------------------------------------
+# # Feature / Target
+# # ---------------------------------------------
+# X = df.drop("outcome", axis=1)
+# y = df["outcome"]
 
-y_pred = knn.predict(X_test_scaled)
-accuracy = accuracy_score(y_test, y_pred)
+# scaler = StandardScaler()
+# X["age"] = scaler.fit_transform(X[["age"]])
 
-# -----------------------------
-# Streamlit Layout: Tabs
-# -----------------------------
-st.set_page_config(page_title="COVID KNN Predictor", layout="wide")
-tabs = st.tabs(["🏠 Introduction", "🩺 Check Yourself"])
+# X_train, X_test, y_train, y_test = train_test_split(
+#     X, y, test_size=0.25, random_state=42, stratify=y
+# )
 
-# -----------------------------
-# Tab 1: Introduction / Model Info
-# -----------------------------
-with tabs[0]:
-    st.header("📝 Data & Model Overview")
-    
-    st.subheader("1. Dataset Info")
-    st.text(df.info())
-    
-    st.subheader("2. First 10 Rows of Original Data")
-    st.dataframe(df.head(10))
-    
-    st.subheader("3. First 10 Rows After Binary Conversion")
-    st.dataframe(df.head(10))  # Already binary converted
-    
-    st.subheader("4. KNN Model Description")
-    st.write("""
-        K-Nearest Neighbors (KNN) is a simple, supervised machine learning algorithm 
-        used for classification. In this project, we use KNN to predict COVID outcomes 
-        based on patient symptoms and demographic data. Weighted KNN with age scaling 
-        is applied for better predictions.
-    """)
-    
-    st.subheader("5. Model Accuracy")
-    st.info(f"KNN Model Accuracy on Test Data: {round(accuracy*100,2)}%")
-    
-    st.subheader("6. Visualizations")
-    
-    # Outcome Distribution
-    st.markdown("**Outcome Distribution**")
-    fig1, ax1 = plt.subplots()
-    counts = df["outcome"].value_counts().sort_index()
-    bars = ax1.bar(["Negative","Positive"], counts, color=["green","red"])
-    for bar in bars:
-        ax1.text(bar.get_x() + bar.get_width()/2, bar.get_height(), str(bar.get_height()),
-                 ha='center', va='bottom')
-    ax1.set_ylabel("Number of Patients")
-    ax1.set_title("COVID Outcome Distribution")
-    st.pyplot(fig1)
-    
-    # Age Distribution
-    st.markdown("**Age Distribution**")
-    fig2, ax2 = plt.subplots()
-    ax2.hist(df["age"], bins=15, color="skyblue", edgecolor="black")
-    ax2.set_xlabel("Age")
-    ax2.set_ylabel("Number of Patients")
-    ax2.set_title("Age Distribution")
-    st.pyplot(fig2)
-    
-    # Correct vs Incorrect Predictions
-    st.markdown("**Prediction Results (Correct vs Incorrect)**")
-    correct = (y_test == y_pred).sum()
-    incorrect = (y_test != y_pred).sum()
-    fig3, ax3 = plt.subplots()
-    bars = ax3.bar(["Correct","Incorrect"], [correct, incorrect], color=["green","red"])
-    for bar in bars:
-        ax3.text(bar.get_x()+bar.get_width()/2, bar.get_height(), str(bar.get_height()),
-                 ha='center', va='bottom')
-    ax3.set_ylabel("Number of Samples")
-    ax3.set_title("KNN Prediction Results")
-    st.pyplot(fig3)
-    
-    # Actual vs Predicted
-    st.markdown("**Actual vs Predicted Outcomes**")
-    actual_counts = y_test.value_counts().sort_index()
-    pred_counts = pd.Series(y_pred).value_counts().sort_index()
-    fig4, ax4 = plt.subplots()
-    ax4.bar(["Actual Negative","Actual Positive"], actual_counts, alpha=0.7, color="blue")
-    ax4.bar(["Pred Negative","Pred Positive"], pred_counts, alpha=0.7, color="orange")
-    ax4.set_ylabel("Number of Samples")
-    ax4.set_title("Actual vs Predicted Outcomes")
-    st.pyplot(fig4)
+# # Apply SMOTE to training set
+# smote = SMOTE(random_state=42)
+# X_train_res, y_train_res = smote.fit_resample(X_train, y_train)
 
-# -----------------------------
-# Tab 2: Check Yourself / Prediction Form
-# -----------------------------
-with tabs[1]:
-    st.header("🩺 Check Yourself")
-    st.write("Enter your details and symptoms to check your predicted COVID outcome.")
+# # ---------------------------------------------
+# # Find Best K using Cross Validation
+# # ---------------------------------------------
+# k_scores = {}
+# for k in range(3, 21, 2):
+#     model = KNeighborsClassifier(n_neighbors=k, weights="distance")
+#     scores = cross_val_score(model, X_train_res, y_train_res, cv=5)
+#     k_scores[k] = scores.mean()
+
+# best_k = max(k_scores, key=k_scores.get)
+
+# # ---------------------------------------------
+# # Train Final Model
+# # ---------------------------------------------
+# knn = KNeighborsClassifier(n_neighbors=best_k, weights="distance")
+# knn.fit(X_train_res, y_train_res)
+
+# y_pred = knn.predict(X_test)
+# accuracy = accuracy_score(y_test, y_pred)
+# conf_matrix = confusion_matrix(y_test, y_pred)
+
+# # ---------------------------------------------
+# # UI Tabs
+# # ---------------------------------------------
+# tab1, tab2 = st.tabs(["📊 Model Analysis", "🧪 Check Yourself"])
+
+# # =================================================
+# # TAB 1 — MODEL ANALYSIS
+# # =================================================
+# with tab1:
+#     st.title("📊 COVID Prediction Model Analysis")
     
-    sex = st.selectbox("Sex", ["Male", "Female"])
-    age = st.slider("Age", min_value=0, max_value=100, value=30)
-    pneumonia = st.selectbox("Pneumonia", ["Yes", "No"])
-    diabetes = st.selectbox("Diabetes", ["Yes", "No"])
-    asthma = st.selectbox("Asthma", ["Yes", "No"])
+#     st.subheader("Raw Data (First 10 Rows)")
+#     st.dataframe(raw_df.head(10))
     
-    input_df = pd.DataFrame({
-        "sex": [1 if sex=="Male" else 0],
-        "age": [age],
-        "pneumonia": [1 if pneumonia=="Yes" else 0],
-        "diabetes": [1 if diabetes=="Yes" else 0],
-        "asthma": [1 if asthma=="Yes" else 0]
-    })
+#     st.subheader("Processed Data (After Encoding)")
+#     st.dataframe(df.head(10))
     
-    # Scale age for user input
-    input_df["age"] = scaler.transform(input_df[["age"]])
+#     st.metric("Model Accuracy", f"{accuracy*100:.2f}%")
+#     st.write(f"Best K Selected Automatically: **{best_k}**")
     
-    if st.button("Predict"):
-        result = knn.predict(input_df)[0]
-        st.subheader("Prediction Result:")
-        if result == 1:
-            st.error("⚠️ Positive COVID Outcome. Consult a doctor immediately.")
-        else:
-            st.success("✅ Negative COVID Outcome. Stay safe!")
+#     col1, col2 = st.columns(2)
+    
+#     with col1:
+#         # Accuracy Pie Chart
+#         fig, ax = plt.subplots()
+#         ax.pie(
+#             [accuracy, 1 - accuracy],
+#             labels=["Correct", "Wrong"],
+#             autopct="%1.1f%%",
+#             startangle=90,
+#             explode=[0.05, 0],
+#             colors=["#4CAF50", "#FF5252"]
+#         )
+#         ax.set_title("Prediction Accuracy Breakdown")
+#         st.pyplot(fig)
+    
+#     with col2:
+#         # Confusion Matrix Heatmap
+#         fig, ax = plt.subplots()
+#         sns.heatmap(
+#             conf_matrix,
+#             annot=True,
+#             fmt="d",
+#             cmap="Blues",
+#             xticklabels=["Negative", "Positive"],
+#             yticklabels=["Negative", "Positive"],
+#             ax=ax
+#         )
+#         ax.set_title("Confusion Matrix")
+#         st.pyplot(fig)
+    
+#     # K Optimization Curve
+#     st.subheader("Cross-Validation Accuracy vs K")
+#     fig, ax = plt.subplots()
+#     ax.plot(list(k_scores.keys()), list(k_scores.values()), marker="o", linewidth=2)
+#     ax.set_xlabel("K Value")
+#     ax.set_ylabel("CV Accuracy")
+#     ax.set_title("Finding Best K for KNN")
+#     st.pyplot(fig)
+    
+#     # Age vs COVID Probability (Logistic Regression Trend)
+#     st.subheader("Age vs COVID Outcome Trend")
+#     try:
+#         import statsmodels.api as sm
+#         fig, ax = plt.subplots()
+#         sns.regplot(
+#             x=df["age"],
+#             y=df["outcome"],
+#             logistic=True,
+#             scatter_kws={"alpha":0.3},
+#             line_kws={"color": "red"},
+#             ax=ax
+#         )
+#         ax.set_xlabel("Age")
+#         ax.set_ylabel("Probability of COVID Positive")
+#         st.pyplot(fig)
+#     except:
+#         st.warning("Install `statsmodels` to show logistic regression trend: pip install statsmodels")
+    
+#     # Outcome Distribution
+#     st.subheader("Outcome Distribution")
+#     fig, ax = plt.subplots()
+#     df["outcome"].value_counts().plot(kind="bar", color=["#2196F3","#FF5722"], ax=ax)
+#     ax.set_xticklabels(["Negative", "Positive"], rotation=0)
+#     ax.set_ylabel("Number of Patients")
+#     ax.set_title("COVID Outcome Distribution")
+#     st.pyplot(fig)
+
+# # =================================================
+# # TAB 2 — LIVE PREDICTION
+# # =================================================
+# with tab2:
+#     st.title("🧪 Check Yourself / COVID Prediction")
+    
+#     sex = st.selectbox("Sex", ["Male", "Female"])
+#     age = st.slider("Age", 1, 100, 30)
+#     pneumonia = st.selectbox("Pneumonia", ["Yes", "No"])
+#     diabetes = st.selectbox("Diabetes", ["Yes", "No"])
+#     asthma = st.selectbox("Asthma", ["Yes", "No"])
+    
+#     input_df = pd.DataFrame({
+#         "sex": [1 if sex=="Male" else 0],
+#         "age": [age],
+#         "pneumonia": [1 if pneumonia=="Yes" else 0],
+#         "diabetes": [1 if diabetes=="Yes" else 0],
+#         "asthma": [1 if asthma=="Yes" else 0]
+#     })
+    
+#     input_df["age"] = scaler.transform(input_df[["age"]])
+    
+#     if st.button("Predict"):
+#         pred = knn.predict(input_df)[0]
+#         probs = knn.predict_proba(input_df)[0]
+        
+#         # Probability Bar Graph
+#         fig, ax = plt.subplots()
+#         ax.bar(["Negative","Positive"], probs, color=["#2196F3","#FF5722"])
+#         ax.set_ylim(0,1)
+#         ax.set_ylabel("Probability")
+#         ax.set_title("Prediction Probability")
+#         st.pyplot(fig)
+        
+#         if pred == 1:
+#             st.error(f"⚠️ COVID Positive ({probs[1]*100:.2f}% probability)")
+#         else:
+#             st.success(f"✅ COVID Negative ({probs[0]*100:.2f}% confidence)")
